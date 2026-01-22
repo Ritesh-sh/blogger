@@ -2,9 +2,7 @@
 Keyword extraction service using KeyBERT.
 Extracts important keywords and phrases from text using NLP.
 """
-import os
-import re
-from collections import Counter
+from keybert import KeyBERT
 from utils.logger import setup_logger
 
 logger = setup_logger(__name__)
@@ -14,56 +12,13 @@ _keybert_model = None
 
 
 def get_keybert_model():
-    """Get or initialize the KeyBERT model.
-
-    Respects DISABLE_KEYBERT (bool) and KEYBERT_MODEL env vars. Loads the model lazily
-    and returns None if loading is disabled or fails, so callers can fall back to a
-    lightweight extractor to avoid OOM on constrained hosts.
-    """
+    """Get or initialize the KeyBERT model."""
     global _keybert_model
-
-    # Allow deployments to disable heavy model loading via env var
-    if os.getenv("DISABLE_KEYBERT", "false").lower() in ("1", "true", "yes"):
-        logger.info("KeyBERT disabled via DISABLE_KEYBERT")
-        return None
-
     if _keybert_model is None:
-        model_name = os.getenv("KEYBERT_MODEL", "paraphrase-MiniLM-L3-v2")
-        logger.info("Loading KeyBERT model: %s", model_name)
-        try:
-            # Delay heavy imports until model load to keep module import lightweight
-            from keybert import KeyBERT
-            from sentence_transformers import SentenceTransformer
-
-            _keybert_model = KeyBERT(model=SentenceTransformer(model_name))
-            logger.info("KeyBERT model loaded successfully")
-        except Exception as e:
-            logger.error("Failed to load KeyBERT model: %s", e)
-            _keybert_model = None
-
+        logger.info("Loading KeyBERT model...")
+        _keybert_model = KeyBERT()
+        logger.info("KeyBERT model loaded successfully")
     return _keybert_model
-
-
-def _simple_keyword_fallback(text, top_n=10, use_ngrams=True):
-    """Lightweight frequency-based keyword extractor as a fallback.
-
-    Returns a list of (keyword, score) tuples to match KeyBERT's output shape.
-    """
-    stop_words = {
-        "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-        "with", "is", "of", "that", "this", "it", "as", "by", "from", "are"
-    }
-
-    words = re.findall(r"\b[a-z]{4,}\b", (text or "").lower())
-    words = [w for w in words if w not in stop_words]
-
-    candidates = list(words)
-    if use_ngrams and len(words) >= 2:
-        for n in (2, 3):
-            candidates.extend([" ".join(words[i:i+n]) for i in range(len(words) - n + 1)])
-
-    most_common = [w for w, _ in Counter(candidates).most_common(top_n)]
-    return [(kw, 1.0) for kw in most_common]
 
 
 class KeywordExtractor:
@@ -88,15 +43,10 @@ class KeywordExtractor:
         
         try:
             model = get_keybert_model()
-
-            # If the heavy model is disabled or failed to load, use a lightweight fallback
-            if not model:
-                logger.info("KeyBERT disabled or failed to load; using simple fallback extractor")
-                return _simple_keyword_fallback(text, top_n=top_n, use_ngrams=use_ngrams)
-
+            
             # Set n-gram range (1-3 words if ngrams, else single words only)
             keyphrase_ngram_range = (1, 3) if use_ngrams else (1, 1)
-
+            
             # Extract keywords
             keywords = model.extract_keywords(
                 text,
@@ -106,14 +56,13 @@ class KeywordExtractor:
                 use_mmr=True,  # Use Maximal Marginal Relevance for diversity
                 diversity=0.5
             )
-
+            
             logger.info(f"Extracted {len(keywords)} keywords from text")
             return keywords
-
+            
         except Exception as e:
             logger.error(f"Keyword extraction failed: {str(e)}")
-            # Fallback to frequency-based extractor to avoid crashing
-            return _simple_keyword_fallback(text, top_n=top_n, use_ngrams=use_ngrams)
+            return []
     
     @staticmethod
     def extract_keywords_list(text, top_n=10, use_ngrams=True):
