@@ -40,8 +40,8 @@ class Config:
     DEFAULT_BLOG_LENGTH = 1000  # words
     
     # Server Configuration
-    HOST = os.getenv('HOST', '0.0.0.0')
-    PORT = int(os.getenv('PORT', 5000))
+   # HOST = os.getenv('HOST', '0.0.0.0')
+    #PORT = int(os.getenv('PORT', 5000))
 
 
 class DevelopmentConfig(Config):

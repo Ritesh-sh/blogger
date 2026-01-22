@@ -92,7 +92,7 @@ def create_app(config_name='default'):
     return app
 
 
-if __name__ == '__main__':
+#if __name__ == '__main__':
     # Create app with development configuration
     app = create_app('development')
     
@@ -107,4 +107,21 @@ if __name__ == '__main__':
         host=host,
         port=port,
         debug=debug
+    )
+
+if __name__ == "__main__":
+    import os
+
+    # Create app using environment (default to production on Render)
+    app = create_app(os.environ.get("FLASK_ENV", "production"))
+
+    # Render ALWAYS provides PORT — do not add fallback
+    port = int(os.environ["PORT"])
+
+    logger.info(f"Starting Flask server on 0.0.0.0:{port}")
+
+    app.run(
+        host="0.0.0.0",
+        port=port,
+        debug=False
     )
