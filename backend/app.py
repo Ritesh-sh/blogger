@@ -2,6 +2,7 @@
 Main Flask application entry point.
 Sets up the Flask app, configures middleware, and registers routes.
 """
+import os
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_jwt_extended import JWTManager
@@ -32,10 +33,10 @@ def create_app(config_name='default'):
     # Load configuration
     app.config.from_object(config[config_name])
     
-    # Initialize CORS
+    # Initialize CORS - Allow all origins for production deployment
     CORS(app, resources={
-        r"/api/*": {
-            "origins": ["http://localhost:5173", "http://localhost:3000"],
+        r"/*": {
+            "origins": "*",
             "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
             "allow_headers": ["Content-Type", "Authorization"]
         }
@@ -50,6 +51,15 @@ def create_app(config_name='default'):
     # Register blueprints
     app.register_blueprint(auth_bp, url_prefix='/api/auth')
     app.register_blueprint(blog_bp, url_prefix='/api/blog')
+    
+    # Root health check endpoint
+    @app.route('/', methods=['GET'])
+    def index():
+        """Root endpoint for Render health check."""
+        return jsonify({
+            'status': 'healthy',
+            'message': 'AI Blog Generator API is running'
+        }), 200
     
     # Health check endpoint
     @app.route('/api/health', methods=['GET'])
@@ -86,10 +96,15 @@ if __name__ == '__main__':
     # Create app with development configuration
     app = create_app('development')
     
+    # Read HOST and PORT from environment variables (with fallback to config)
+    host = os.getenv('HOST', app.config.get('HOST', '0.0.0.0'))
+    port = int(os.getenv('PORT', app.config.get('PORT', 5000)))
+    debug = os.getenv('FLASK_DEBUG', str(app.config.get('DEBUG', False))).lower() == 'true'
+    
     # Run the application
-    logger.info(f"Starting Flask server on {app.config['HOST']}:{app.config['PORT']}")
+    logger.info(f"Starting Flask server on {host}:{port}")
     app.run(
-        host=app.config['HOST'],
-        port=app.config['PORT'],
-        debug=app.config['DEBUG']
+        host=host,
+        port=port,
+        debug=debug
     )
