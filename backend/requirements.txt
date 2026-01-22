@@ -1,0 +1,30 @@
+# Flask and Web Framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+Flask-JWT-Extended==4.6.0
+
+# Database
+pymongo==4.6.1
+python-dotenv==1.0.0
+
+# Authentication
+bcrypt==4.1.2
+
+# Web Scraping & Content Extraction
+requests==2.31.0
+beautifulsoup4==4.12.3
+trafilatura==1.7.0
+
+# NLP & Keyword Extraction
+keybert==0.8.4
+sentence-transformers==2.3.1
+spacy==3.7.2
+
+# LLM Integration
+google-generativeai==0.3.2
+
+# Utilities
+python-dateutil==2.8.2
+
+# Logging
+colorlog==6.8.0
