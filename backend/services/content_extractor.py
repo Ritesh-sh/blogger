@@ -46,7 +46,7 @@ class ContentExtractor:
             )
             response.raise_for_status()
             
-            # Extract content using Trafilatura
+            # Extract content using Trafilatura with progressive fallbacks
             downloaded = trafilatura.extract(
                 response.content,
                 include_comments=False,
@@ -55,13 +55,43 @@ class ContentExtractor:
                 with_metadata=True,
                 output_format='json'
             )
-            
+
+            # If primary extraction fails, try a more permissive extraction
             if not downloaded:
-                raise ValueError("Could not extract content from the page")
-            
-            # Parse the JSON response
+                logger.info(f"Primary trafilatura extract failed for {url}, trying permissive mode")
+                downloaded = trafilatura.extract(
+                    response.text,
+                    include_comments=True,
+                    include_tables=True,
+                    favor_precision=False,
+                    with_metadata=True,
+                    output_format='json'
+                )
+
+            # Parse the JSON response if we have it
             import json
-            content_data = json.loads(downloaded) if isinstance(downloaded, str) else downloaded
+            content_data = None
+            if downloaded:
+                content_data = json.loads(downloaded) if isinstance(downloaded, str) else downloaded
+            else:
+                # Try plain-text extraction (no metadata)
+                plain_text = trafilatura.extract(response.content)
+                if plain_text:
+                    content_data = {'text': plain_text, 'title': '', 'description': '', 'author': '', 'date': ''}
+                else:
+                    # Final fallback: BeautifulSoup visible text
+                    try:
+                        from bs4 import BeautifulSoup
+                        soup = BeautifulSoup(response.content, "html.parser")
+                        visible = soup.get_text(separator="\n")
+                        visible = visible.strip() if visible else ""
+                        if visible:
+                            content_data = {'text': visible, 'title': '', 'description': '', 'author': '', 'date': ''}
+                    except Exception:
+                        content_data = None
+
+            if not content_data:
+                raise ValueError("Could not extract content from the page")
             
             # Extract and clean data (use safe fallback when metadata is None)
             def _safe_strip(value):
