@@ -63,13 +63,16 @@ class ContentExtractor:
             import json
             content_data = json.loads(downloaded) if isinstance(downloaded, str) else downloaded
             
-            # Extract and clean data
+            # Extract and clean data (use safe fallback when metadata is None)
+            def _safe_strip(value):
+                return (value or '').strip()
+
             result = {
-                'text': content_data.get('text', '').strip(),
-                'title': content_data.get('title', '').strip(),
-                'description': content_data.get('description', '').strip(),
-                'author': content_data.get('author', '').strip(),
-                'date': content_data.get('date', '').strip(),
+                'text': _safe_strip(content_data.get('text')),
+                'title': _safe_strip(content_data.get('title')),
+                'description': _safe_strip(content_data.get('description')),
+                'author': _safe_strip(content_data.get('author')),
+                'date': _safe_strip(content_data.get('date')),
                 'url': url
             }
             
